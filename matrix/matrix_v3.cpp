@@ -7,8 +7,8 @@
 #define TILE 32
 #define ROUND (SIZE / TILE)
 
-void matmul(float *A, float *B, float *C, int M, int K, int N) {
-    memset(C, 0, M * N * sizeof(float));
+void matmul(double *A, double *B, double *C, int M, int K, int N) {
+    memset(C, 0, M * N * sizeof(double));
     for (int block_i = 0; block_i < ROUND; ++block_i) {
         for (int block_k = 0; block_k < ROUND; ++block_k) {
             for (int block_j = 0; block_j < ROUND; ++block_j) {
@@ -27,12 +27,12 @@ void matmul(float *A, float *B, float *C, int M, int K, int N) {
 int main() {
     const int M = SIZE, K = SIZE, N = SIZE;
     bool flag = false;
-    float *A = (float*) aligned_alloc(64, M * K * sizeof(float));
-    float *B = (float*) aligned_alloc(64, K * N * sizeof(float));
-    float *C = (float*) aligned_alloc(64, M * N * sizeof(float));
+    double *A = (double*) aligned_alloc(64, M * K * sizeof(double));
+    double *B = (double*) aligned_alloc(64, K * N * sizeof(double));
+    double *C = (double*) aligned_alloc(64, M * N * sizeof(double));
 
-    for (int i = 0; i < M * K; ++i) A[i] = 1.0f;
-    for (int i = 0; i < K * N; ++i) B[i] = 2.0f;
+    for (int i = 0; i < M * K; ++i) A[i] = 1.0;
+    for (int i = 0; i < K * N; ++i) B[i] = 2.0;
 
     auto start = std::chrono::high_resolution_clock::now();
     matmul(A, B, C, M, K, N);
@@ -41,7 +41,7 @@ int main() {
     std::cout << "Execution time: " << elapsed.count() << " s\n";
 
     for (int i = 0; i < M * N; ++i) {
-        if (C[i] != (2.0f) * SIZE) {
+        if (C[i] != (2.0) * SIZE) {
             flag = true;
             printf("%f\n", C[i]);
             break;

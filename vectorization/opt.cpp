@@ -6,19 +6,28 @@
 #include <chrono>
 #include <iostream>
 #define SIZE 4096
-void matmul_avx512(float *A, float *B, float *C, int M, int K, int N) {
+
+
+void matmul_avx512(float *A, float *B, float *C, int m, int k, int n) {
     const int VLEN = 16;
-    memset(C, 0, M * N * sizeof(float));
-    //#pragma omp parallel for collapse(2)
-    for (int i = 0; i < M; ++i) {
-        for (int k = 0; k < K; ++k) {
-            __m512 a_vec = _mm512_set1_ps(A[i * K + k]);
-            for (int j = 0; j < N; j += VLEN) {
-                __m512 b_vec = _mm512_loadu_ps(&B[k * N + j]);
-                __m512 c_vec = _mm512_loadu_ps(&C[i * N + j]);
-                c_vec = _mm512_fmadd_ps(a_vec, b_vec, c_vec);
-                _mm512_storeu_ps(&C[i * N + j], c_vec);
+    memset(C, 0, m * n * sizeof(float));
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            __m512 c = _mm512_setzero_ps(); // 用来累加 C(i,j) 的值
+
+            for (int l = 0; l < k; l += VLEN) {
+                // 加载 A 的一行（1x16）
+                __m512 a = _mm512_loadu_ps(&A[i * k + l]);
+                
+                // 加载 B 的一列（16x1，已转置）
+                __m512 b = _mm512_loadu_ps(&B[j * k + l]);
+
+                // 计算 A 的当前元素与 B 的当前列的乘积并累加
+                c = _mm512_fmadd_ps(a, b, c);
             }
+
+            // 将结果存入 C(i,j)
+            _mm512_storeu_ps(&C[i * n + j], c);
         }
     }
 }
@@ -27,13 +36,21 @@ int main() {
     const int M = SIZE, K = SIZE, N = SIZE;
     bool flag = false;
     float *A = (float*) aligned_alloc(64, M * K * sizeof(float));
+    float *B_ = (float*) aligned_alloc(64, K * N * sizeof(float));
     float *B = (float*) aligned_alloc(64, K * N * sizeof(float));
     float *C = (float*) aligned_alloc(64, M * N * sizeof(float));
 
     for (int i = 0; i < M * K; ++i) A[i] = 1.0f;
-    for (int i = 0; i < K * N; ++i) B[i] = 2.0f;
+    for (int i = 0; i < K * N; ++i) B_[i] = 2.0f;
 
     auto start = std::chrono::high_resolution_clock::now();
+
+    for (int i = 0; i < K; ++i) {
+        for (int j = 0; j < N; ++j) {
+            B[j * M + i] = B_[i * N + j];
+        }
+    }
+
     matmul_avx512(A, B, C, M, K, N);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
