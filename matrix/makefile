@@ -1,7 +1,7 @@
 CC = g++
 CFLAGS = -O3 -Wall -fopenmp
 
-SRC = matrix_v1.cpp matrix_v2.cpp matrix_v3.cpp
+SRC = $(wildcard *.cpp)
 TARGET = $(SRC:.cpp=)
 
 all: $(TARGET)

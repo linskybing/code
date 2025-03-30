@@ -1,45 +1,53 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <omp.h>
-#define N 4096
-#define TILE 64
+#include <chrono>
+#include <iostream>
+#define SIZE 1024
+#define TILE 32
+#define ROUND (SIZE / TILE)
 
-float a[N][N], b[N][N], c[N][N];
-
-inline void mat_mul_block(int si, int sj, int sk) {
-    for (int i = si; i < si + TILE; ++i) {
-        #pragma GCC unroll 8
-        for (int k = sk; k < sk + TILE; ++k) {
-            #pragma GCC unroll 64
-            for (int j = sj; j < sj + TILE; ++j) {
-                c[i][j] += a[i][k] * b[k][j];
+void matmul(float *A, float *B, float *C, int M, int K, int N) {
+    memset(C, 0, M * N * sizeof(float));
+    for (int block_i = 0; block_i < ROUND; ++block_i) {
+        for (int block_k = 0; block_k < ROUND; ++block_k) {
+            for (int block_j = 0; block_j < ROUND; ++block_j) {
+                for (int i = block_i * TILE; i < (block_i + 1) * TILE; ++i) {
+                    for (int k = block_k * TILE; k < (block_k + 1) * TILE; ++k) {
+                        for (int j = block_j * TILE; j < (block_j + 1) * TILE; ++j) {
+                            C[i * N + j] += A[i * K + k] * B[k * N + j];
+                        }
+                    }
+                }
             }
         }
     }
 }
 
-void fgemm() {
-    #pragma omp parallel for collapse(2)
-    for (int si = 0; si < N; si += TILE)
-        for (int sj = 0; sj < N; sj += TILE) {
-            for (int sk = 0; sk < N; sk += TILE)
-                mat_mul_block(si, sj, sk);
-        }
-
-}
-
 int main() {
-    FILE *fa = fopen("a.dat", "rb"), *fb = fopen("b.dat", "rb"), *fc = fopen("c.dat", "wb");
-    fread(a, sizeof(float), sizeof a / sizeof(float), fa);
-    fread(b, sizeof(float), sizeof b / sizeof(float), fb);
-    fclose(fa);
-    fclose(fb);
+    const int M = SIZE, K = SIZE, N = SIZE;
+    bool flag = false;
+    float *A = (float*) aligned_alloc(64, M * K * sizeof(float));
+    float *B = (float*) aligned_alloc(64, K * N * sizeof(float));
+    float *C = (float*) aligned_alloc(64, M * N * sizeof(float));
 
-    memset(c, 0, sizeof c);
-    fgemm();
+    for (int i = 0; i < M * K; ++i) A[i] = 1.0f;
+    for (int i = 0; i < K * N; ++i) B[i] = 2.0f;
 
-    fwrite(c, sizeof(float), sizeof c / sizeof(float), fc);
-    fclose(fc);
+    auto start = std::chrono::high_resolution_clock::now();
+    matmul(A, B, C, M, K, N);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end - start;
+    std::cout << "Execution time: " << elapsed.count() << " s\n";
 
+    for (int i = 0; i < M * N; ++i) {
+        if (C[i] != (2.0f) * SIZE) {
+            flag = true;
+            printf("%f\n", C[i]);
+            break;
+        }
+    }
+    printf(((flag)? "wrong answer!!\n": "correct answer\n"));
+    free(A); free(B); free(C);
     return 0;
 }
