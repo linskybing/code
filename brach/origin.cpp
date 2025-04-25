@@ -2,7 +2,7 @@
 #include <chrono>
 
 int main() {
-    const int N = 100000000;  // Set the number of iterations
+    const int N = 1E8;  // Set the number of iterations
     int sum = 0;
 
     auto start = std::chrono::high_resolution_clock::now();  // Record start time

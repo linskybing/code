@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -O0 -Wall -fopenmp
+CFLAGS = -O0 -Wall
 
 SRC = $(wildcard *.cpp)
 TARGET = $(SRC:.cpp=)
@@ -7,7 +7,7 @@ TARGET = $(SRC:.cpp=)
 all: $(TARGET)
 
 %: %.cpp
-	$(CC) $(CFLAGS) $< -o $@
+	$(CC) $(CFLAGS) $< -o $@.o
 
 .PHONY: clean
 
