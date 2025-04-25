@@ -3,9 +3,12 @@
 #include <string.h>
 #include <chrono>
 #include <iostream>
-#define SIZE 1024
-void matmul(double *A, double *B, double *C, int M, int K, int N) {
-    memset(C, 0, M * N * sizeof(double));
+#define SIZE 2048
+
+typedef float real_t;
+
+void matmul(real_t *A, real_t *B, real_t *C, int M, int K, int N) {
+    memset(C, 0, M * N * sizeof(real_t));
     for (int i = 0; i < M; ++i) {
         for (int j = 0; j < N; ++j) {
             for (int k = 0; k < K; ++k) {
@@ -18,9 +21,9 @@ void matmul(double *A, double *B, double *C, int M, int K, int N) {
 int main() {
     const int M = SIZE, K = SIZE, N = SIZE;
     bool flag = false;
-    double *A = (double*) aligned_alloc(64, M * K * sizeof(double));
-    double *B = (double*) aligned_alloc(64, K * N * sizeof(double));
-    double *C = (double*) aligned_alloc(64, M * N * sizeof(double));
+    real_t *A = (real_t*) aligned_alloc(64, M * K * sizeof(real_t));
+    real_t *B = (real_t*) aligned_alloc(64, K * N * sizeof(real_t));
+    real_t *C = (real_t*) aligned_alloc(64, M * N * sizeof(real_t));
 
     for (int i = 0; i < M * K; ++i) A[i] = 1.0;
     for (int i = 0; i < K * N; ++i) B[i] = 2.0;
@@ -28,7 +31,7 @@ int main() {
     auto start = std::chrono::high_resolution_clock::now();
     matmul(A, B, C, M, K, N);
     auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = end - start;
+    std::chrono::duration<real_t> elapsed = end - start;
     std::cout << "Execution time: " << elapsed.count() << " s\n";
 
     for (int i = 0; i < M * N; ++i) {
