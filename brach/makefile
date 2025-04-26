@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -O0 -Wall
+CFLAGS = -O0 -Wall -mavx2 -fopenmp
 
 SRC = $(wildcard *.cpp)
 TARGET = $(SRC:.cpp=)
