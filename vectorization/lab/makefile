@@ -18,3 +18,4 @@ main: main.cpp
 
 clean:
 	rm -f $(BIN)
+	rm -f *.bin

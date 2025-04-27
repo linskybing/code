@@ -2,7 +2,7 @@
 #include <fstream>
 #include <random>
 #include <cstdlib>       // for aligned_alloc, free
-
+#include <chrono>
 using real_t = float;   // change to double if needed
 
 // Write a binary float array to a file
@@ -49,6 +49,7 @@ int main(int argc, char* argv[]) {
     std::fill_n(C, M * N, static_cast<real_t>(0));
 
     // Compute C = A * B
+    auto start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < M; ++i) {
         for (int k = 0; k < K; ++k) {
             real_t aik = A[static_cast<size_t>(i) * K + k];
@@ -57,6 +58,10 @@ int main(int argc, char* argv[]) {
             }
         }
     }
+    
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end - start;
+    std::cout << "Execution time: " << elapsed.count() << " s\n";
 
     // Write data to files: A then B into input.bin, C into ans.bin
     write_matrix("input.bin", A, static_cast<size_t>(M) * K, false);

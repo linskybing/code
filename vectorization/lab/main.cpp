@@ -4,19 +4,10 @@
 #include <cstdlib>
 #include <chrono>
 #include <immintrin.h>
-#define TILE 64
+#define TILE 32
 #define min(a, b) ((a < b)? a : b)
 
 using real_t = float;
-
-inline real_t* aligned_malloc(size_t n) {
-    return static_cast<real_t*>(_mm_malloc(n * sizeof(real_t), 32));
-}
-
-inline void aligned_free(real_t* ptr) {
-    _mm_free(ptr);
-}
-
 
 void write_matrix(const std::string &filename, const real_t *data, size_t count, bool append=false) {
     std::ofstream ofs;
@@ -32,43 +23,18 @@ void write_matrix(const std::string &filename, const real_t *data, size_t count,
     ofs.write(reinterpret_cast<const char*>(data), count * sizeof(real_t));
 }
 
-inline void matmul_avx2(real_t *A, real_t *B, real_t *C, int block_i, int block_j, int block_k, const int M, const int K, const int N) {
-    int i_end = min(block_i + TILE, M);
-    int k_end = min(block_k + TILE, K);
-    int j_end = min(block_j + TILE, N);
 
-    const int VLEN = 8;
-    // [TODO] convert to avx2 version
-    for (int i = block_i; i < i_end; ++i) {
-        for (int k = block_k; k < k_end; ++k) {
-
+inline void matmul_avx2(real_t *A, real_t *B, real_t *C, int M, int K, int N) {
+    for (int i = 0; i < M; ++i) {
+        for (int k = 0; k < K; ++k) {
             __m256 a_vec = _mm256_set1_ps(A[i * K + k]);
-
-            int j = block_j;
-            for (; j <= j_end - VLEN; j += VLEN) {
-                __m256 c_vec = _mm256_loadu_ps(&C[i * N + j]);
-                __m256 b_vec = _mm256_loadu_ps(&B[k * N + j]);
-
-                c_vec = _mm256_fmadd_ps(a_vec, b_vec, c_vec);
-
-                _mm256_storeu_ps(&C[i * N + j], c_vec);
-            }
-
-            for (; j < j_end; ++j) {
-                C[i*N + j] += A[i*K + k] * B[k*N + j];
+            for (int j = 0; j < N - 7; j += 8) {
+                __m256 b_vec = _mm256_load_ps(&B[k * N + j]);
+                __m256 c_vec = _mm256_load_ps(&C[i * N + j]);
+                _mm256_store_ps(&C[i * N + j], _mm256_add_ps(_mm256_mul_ps(a_vec, b_vec), c_vec));
             }
         }
     }
-}
-
-
-void matmul_tile(real_t *A, real_t *B, real_t *C, int M, int K, int N) {
-    memset(C, 0, M * N * sizeof(real_t));
-
-    for (int block_j = 0; block_j < N; block_j += TILE)
-        for (int block_i = 0; block_i < M; block_i += TILE)
-            for (int block_k = 0; block_k < K; block_k += TILE)
-                matmul_avx2(A, B, C, block_i, block_j, block_k, M, K, N);
 }
 
 int main(int argc, char *argv[]) {
@@ -82,9 +48,11 @@ int main(int argc, char *argv[]) {
     int N = std::stoi(argv[3]);
 
     // Aligned allocations for better vectorization
-    real_t *A = aligned_malloc(M * K);
-    real_t *B = aligned_malloc(K * N);
-    real_t *C = aligned_malloc(M * N);
+    real_t *A = reinterpret_cast<real_t*>(aligned_alloc(32, M * K * sizeof(real_t)));
+    real_t *B = reinterpret_cast<real_t*>(aligned_alloc(32, K * N * sizeof(real_t)));
+    real_t *C = reinterpret_cast<real_t*>(aligned_alloc(32, M * N * sizeof(real_t)));
+
+    memset(C, 0, M * N * sizeof(real_t));
 
     if (!A || !B || !C) {
         std::cerr << "Aligned allocation failed" << std::endl;
@@ -104,7 +72,7 @@ int main(int argc, char *argv[]) {
     // Matrix multiplication
     auto start = std::chrono::high_resolution_clock::now();
     
-    matmul_tile(A, B, C, M, K, N);
+    matmul_avx2(A, B, C, M, K, N);
     
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
@@ -113,9 +81,9 @@ int main(int argc, char *argv[]) {
     write_matrix("c.bin", C, static_cast<size_t>(M) * N, false);
 
     // Free allocated memory
-    aligned_free(A);
-    aligned_free(B);
-    aligned_free(C);
+    free(A);
+    free(B);
+    free(C);
 
     return 0;
 }
