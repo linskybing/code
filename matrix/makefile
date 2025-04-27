@@ -7,7 +7,7 @@ TARGET = $(SRC:.cpp=)
 all: $(TARGET)
 
 %: %.cpp
-	$(CC) $(CFLAGS) $< -o $@.o
+	$(CC) $(CFLAGS) $< -o $@
 
 .PHONY: clean
 
